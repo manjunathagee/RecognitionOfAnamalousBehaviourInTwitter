@@ -161,7 +161,7 @@ twitter[i][\verb tweeting_period] \leftarrow max(Q1, Q2 , Q3 , Q4)
 \end{equation*}
 
 \subsection{Device Preference}
-Here we track the device category that the user is using to compose tweets, majority of the user tend to use same category of devices like mobile phones, Desktops, Tablets etc. by tracking the device preference of an user will be able to detect anamalous behaviour 
+Here we track the device category that the user is using to compose tweets, majority of the user tend to use same category of devices like mobile phones, Desktops, Tablets etc. by tracking the device preference of an user will be able to detect anamalous behaviour.
 
 \textbf{Algorithm 2:} Computing the Device preference for each user in Dataset DT; \\
 \textbf{Input:} Preprocessed dataset DT; i=1,2,3..N, t=1,2,3...M, contains the devices(t) used by user(i) for composing tweet;\\
@@ -169,9 +169,17 @@ Here we track the device category that the user is using to compose tweets, majo
 
 \begin{enumerate}
 	\item Iterate: i = 1 to N; \\
-	
+	Initialize device preference  for each user i;\\
+	\begin{equation*}
+		\verb device_preference[i]  \leftarrow "";
+	\end{equation*}
+	\item Iterate: t = 1 to M;
+		\begin{align*}
+				 sources & \leftarrow availableSourceForUser[i]; \\
+				 devicePreference[i] & \leftarrow numeric( asCharacter( max( sources )))
+		\end{align*}
 \end{enumerate}
-
+First will extract all the device that the user has used to compose the tweet, and in the next step will consider the most used device among the available sources. Since the ANN cannot work on the string sources, we convert the string sources to neumaric values.
  
 
 
