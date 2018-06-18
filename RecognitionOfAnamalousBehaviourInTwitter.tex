@@ -101,6 +101,7 @@ However, the accounts which are hacked are not created for sending spam and ther
 based on the behaviour and reaction of the original user [reference number]. One more proposal was done by Thomas et al. [reference number] will show the impact of the compromised account by exposing the threat of criminal account hijacking and the damage they can do. The research done by Egele et al. [reference number]  has the same approach as this study. They proposed a tool that identifies compromised accounts on Facebook and Twitter. The tool considers 6 features into account. Each feature has its own weight, which are determined  by the labelled training dataset of Facebook and Twitter. The weights for the Twitter features were found to be as follows:Personal Interaction (1.4),  Source (3.3), Hour of Day (0.88), Domain (0.96), Topic (0.39) and  Language (0.58). The propsed method was able to detect compromised accounts with a false positive of 3.6 percent.
 
 \section{Features Desciption}
+\label{featureDescription}
 In this section we will discuss the derived features which are used to train the Artifical Neural Network.
 
 \subsection{FriendShip Ratio}
@@ -183,6 +184,14 @@ First will extract all the device that the user has used to compose the tweet, a
 \newpage
  
 \section{Methodology}
+\includegraphics[scale=0.7]{Methodology}
+The entire application flow can be summerized using the above flow diagram. First step includes extraction of real world data, we have used python library called 'tweepy' for extracting the data in csv format.\\
+
+The quality of the machine learning algorithm depends directly on the quality of input data, real world data tends to be messy with many missing values, redundant and noisy data etc, hence in the second step we carry out exploratory data analysis where we clean the data looking for missing, NA's or empty values, look for duplicate id's and identify any outliers and remove them since they can make the ANN model unstable for prediction.\\
+
+In the third step we derive the columns like Friendship Ratio, Tweet Ratio, Tweeting Period, Device Preference using the algorithm discussed in section \ref{featureDescription}. The derived values are then normalized to scale within 0 to 1. \\
+
+Once the data is preprocessed and all the derived columns are available, we split the data into train and test data, we use the train data to prepare the ANN model and once the model is trained we use the remaining test data to evaluate the accuracy of the model to test how well the model has learnt from it's test data.
 
 
 \end{document}
