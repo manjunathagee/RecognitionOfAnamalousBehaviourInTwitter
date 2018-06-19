@@ -17,7 +17,6 @@
 # Automate the process and predict whether twitter account is compromised or not, identify bots and find the factors affecting 
 
 ################################################################
-library(lubridate)
 library(dplyr)
 library(ggplot2)
 library(neuralnet)
@@ -33,12 +32,14 @@ library(dplyr)
 library(GGally)
 library(prettyunits)
 library(chron)
+library(lubridate)
 library(tidyr)
 
 #####################################################################
 #       I. EDA                                                      #
 #####################################################################
 ###### DATA UNDERSTANDING, PREPARATION & DATA ANALYSIS ##############
+startTime <- Sys.time()
 
 tweets <- read.csv("tweets1.csv",stringsAsFactors = FALSE)
 
@@ -60,6 +61,39 @@ sum(tweets=="") # 0 empty data in columns
 
 # Removing the Redundant Columns
 tweets <- tweets[,-7]
+
+#Data Preprocessing - which will look for any null/Empty values for mandatory columns and removes the corresponding row
+
+df <- df[rowSums(is.na(df)) != ncol(df),]
+df <- df[!apply(df == "", 1, all),]
+
+if(any(is.na(df[, "created_at"]))){
+  df <- df[!(is.na(df$created_at) | df$created_at == ""), ]
+}
+
+if(any(is.na(df[, "text"]))){
+  df <- df[!(is.na(df$text) | df$text==""), ]
+}
+
+if(any(is.na(df[, "favorite_count"]))){
+  df <- df[!(is.na(df$favorite_count) | df$favorite_count == ""), ]
+}
+
+if(any(is.na(df[, "followers_count"]))){
+  df <- df[!(is.na(df$followers_count) | df$followers_count==""), ]
+}
+
+if(any(is.na(df[, "friends_count"]))){
+  df <- df[!(is.na(df$friends_count) | df$friends_count==""), ]
+}
+
+if(any(is.na(df[, "user_created_at"]))){
+  df <- df[!(is.na(df$user_created_at) | df$user_created_at==""), ]
+}
+
+if(any(is.na(df[, "tweet_language"]))){
+  df <- df[!(is.na(df$tweet_language) | df$tweet_language==""), ]
+}
 
 
 #Utility function returns the difference in days between two date objects
@@ -89,7 +123,66 @@ tweets <- processedfavoriteCountRatio
 processedtweetsRatio <- mutate(tweets, tweetsRatio = tweets$tweetCount / tweets$userLongevity)
 tweets <- processedtweetsRatio
 
+#Compute Twitting Period - Which duration of the day does the user sends tweet
+Q1 <- 0
+Q2 <- 0
+Q3 <- 0
+Q4 <- 0
 
+tweetingPeriod <- sapply(tweets$created_at, function(tweetTime){
+  sentTime <- hour(ymd_hms(tweetTime))
+  
+  if(as.numeric(floor(sentTime/6)) == 0){
+    Q1 <- Q1+1
+    return (0)
+  } else if(as.numeric(floor(sentTime/6)) == 1){
+    Q2 <- Q2+1
+    return (1)
+  } else if(as.numeric(floor(sentTime/6)) == 2){
+    Q3 <- Q3+1
+    return (2)
+  } else{
+    Q4 <- Q4+1
+    return (3)
+  }
+})
+
+tweets <- transform(tweets, tweetingPeriod = tweetingPeriod)
+
+#segregate Users who are evey much active from the rest based on followers count
+for(i in 1:nrow(df)){
+  if(df[i, 'followers_count'] > 5000){
+    df[i, 'active_user'] <- 1
+  } else{
+    df[i, 'active_user'] <- 0
+  }
+}
+
+#Compute most active language used by user for sending tweets
+availableLang <- as.data.frame(levels(factor(df$tweet_language)))
+for(i in 1:nrow(df)){
+  for(j in 1:nrow(availableLang)){
+    lang <- as.character(availableLang[j, ])
+    df[i, lang] <- 0
+  }
+}
+
+lang <- df[, 13]
+df <- transform(df, tweetLang = ave(df[, lang], user_id, FUN = length))
+
+#Compute most used device for sending tweets
+availableSource <- as.data.frame(levels(factor(df$source)))
+for(i in 1:nrow(df)){
+  for(j in 1:nrow(availableSource)){
+    source <- as.character(availableSource[j, ])
+    df[i, source] <- 0
+  }
+}
+
+for(i in 1:nrow(df)){
+  source <- df[i, 7]
+  df[i, source] <- (df[i, source] + 1)
+}
 
 # Derived column Normal to check whether record is a valid or invalid, currently i am considering friendshipRatio and tweetRatio > 14 is invalid and all other is valid
 for(i in 1:nrow(tweets)){
@@ -313,4 +406,12 @@ neuralNet <- neuralnet(combined_col_names,data=train,hidden=c(5,3),linear.output
 plot(neuralNet)
 
 predicted.nn.values <- compute(neuralNet,test[1:10])
+predicted.nn.values
+
+
+
+
+endTime <- Sys.time()
+
+cat(paste('Total Execution Time::', (endTime - startTime)/60, 'min'))
 
