@@ -34,6 +34,7 @@ library(prettyunits)
 library(chron)
 library(lubridate)
 library(tidyr)
+library(cluster)
 
 #####################################################################
 #       I. EDA                                                      #
@@ -42,6 +43,7 @@ library(tidyr)
 startTime <- Sys.time()
 
 tweets <- read.csv("tweets1.csv",stringsAsFactors = FALSE)
+finalResult <- tweets[!duplicated(tweets$user_id), ]
 
 # structure of tweets dataframes
 str(tweets)        # 140640 obs. of  14 variables
@@ -64,35 +66,35 @@ tweets <- tweets[,-7]
 
 #Data Preprocessing - which will look for any null/Empty values for mandatory columns and removes the corresponding row
 
-df <- df[rowSums(is.na(df)) != ncol(df),]
-df <- df[!apply(df == "", 1, all),]
+tweets <- tweets[rowSums(is.na(tweets)) != ncol(tweets),]
+tweets <- tweets[!apply(tweets == "", 1, all),]
 
-if(any(is.na(df[, "created_at"]))){
-  df <- df[!(is.na(df$created_at) | df$created_at == ""), ]
+if(any(is.na(tweets[, "created_at"]))){
+  tweets <- tweets[!(is.na(tweets$created_at) | tweets$created_at == ""), ]
 }
 
-if(any(is.na(df[, "text"]))){
-  df <- df[!(is.na(df$text) | df$text==""), ]
+if(any(is.na(tweets[, "text"]))){
+  tweets <- tweets[!(is.na(tweets$text) | tweets$text==""), ]
 }
 
-if(any(is.na(df[, "favorite_count"]))){
-  df <- df[!(is.na(df$favorite_count) | df$favorite_count == ""), ]
+if(any(is.na(tweets[, "favorite_count"]))){
+  tweets <- tweets[!(is.na(tweets$favorite_count) | tweets$favorite_count == ""), ]
 }
 
-if(any(is.na(df[, "followers_count"]))){
-  df <- df[!(is.na(df$followers_count) | df$followers_count==""), ]
+if(any(is.na(tweets[, "followers_count"]))){
+  tweets <- tweets[!(is.na(tweets$followers_count) | tweets$followers_count==""), ]
 }
 
-if(any(is.na(df[, "friends_count"]))){
-  df <- df[!(is.na(df$friends_count) | df$friends_count==""), ]
+if(any(is.na(tweets[, "friends_count"]))){
+  tweets <- tweets[!(is.na(tweets$friends_count) | tweets$friends_count==""), ]
 }
 
-if(any(is.na(df[, "user_created_at"]))){
-  df <- df[!(is.na(df$user_created_at) | df$user_created_at==""), ]
+if(any(is.na(tweets[, "user_created_at"]))){
+  tweets <- tweets[!(is.na(tweets$user_created_at) | tweets$user_created_at==""), ]
 }
 
-if(any(is.na(df[, "tweet_language"]))){
-  df <- df[!(is.na(df$tweet_language) | df$tweet_language==""), ]
+if(any(is.na(tweets[, "tweet_language"]))){
+  tweets <- tweets[!(is.na(tweets$tweet_language) | tweets$tweet_language==""), ]
 }
 
 
@@ -113,15 +115,25 @@ tweets$friends_count <- as.numeric(tweets$friends_count)
 # Derived columns
 processeduserLongevity <- mutate(tweets, userLongevity = round(dateDifference(ymd_hms(user_created_at))))
 tweets <- processeduserLongevity
+finalResult <- processeduserLongevity[!duplicated(processeduserLongevity$user_id), ]
+
 processedtweetCount <- transform(tweets, tweetCount = ave(user_id, user_id, FUN = length))
 tweets <- processedtweetCount
+finalResult <- processedtweetCount[!duplicated(processedtweetCount$user_id), ]
+
 tweets$tweetCount <- as.numeric(tweets$tweetCount)
 processedfriendShipRatio <- mutate(tweets, friendShipRatio = (tweets$friends_count/ tweets$userLongevity)*10)
 tweets <- processedfriendShipRatio
+finalResult <- processedfriendShipRatio[!duplicated(processedfriendShipRatio$user_id), ]
+
+
 processedfavoriteCountRatio <- mutate(tweets, favoriteCountRatio = tweets$favorite_count / tweets$userLongevity)
 tweets <- processedfavoriteCountRatio
+finalResult <- processedfavoriteCountRatio[!duplicated(processedfavoriteCountRatio$user_id), ]
+
 processedtweetsRatio <- mutate(tweets, tweetsRatio = tweets$tweetCount / tweets$userLongevity)
 tweets <- processedtweetsRatio
+finalResult <- processedtweetsRatio[!duplicated(processedtweetsRatio$user_id), ]
 
 #Compute Twitting Period - Which duration of the day does the user sends tweet
 Q1 <- 0
@@ -148,40 +160,45 @@ tweetingPeriod <- sapply(tweets$created_at, function(tweetTime){
 })
 
 tweets <- transform(tweets, tweetingPeriod = tweetingPeriod)
+finalResult <- tweets[!duplicated(tweets$user_id), ]
 
 #segregate Users who are evey much active from the rest based on followers count
-for(i in 1:nrow(df)){
-  if(df[i, 'followers_count'] > 5000){
-    df[i, 'active_user'] <- 1
+ggplot(finalResult, aes(finalResult$user_id, finalResult$followers_count, color = user_id),xlab("User ID"), ylab("Followers Count")) + geom_point()
+
+
+#Use Clustering here k-means
+for(i in 1:nrow(tweets)){
+  if(tweets[i, 'followers_count'] > 5000){
+    tweets[i, 'active_user'] <- 1
   } else{
-    df[i, 'active_user'] <- 0
+    tweets[i, 'active_user'] <- 0
   }
 }
 
 #Compute most active language used by user for sending tweets
-availableLang <- as.data.frame(levels(factor(df$tweet_language)))
-for(i in 1:nrow(df)){
+availableLang <- as.data.frame(levels(factor(tweets$tweet_language)))
+for(i in 1:nrow(tweets)){
   for(j in 1:nrow(availableLang)){
     lang <- as.character(availableLang[j, ])
-    df[i, lang] <- 0
+    tweets[i, lang] <- 0
   }
 }
 
-lang <- df[, 13]
-df <- transform(df, tweetLang = ave(df[, lang], user_id, FUN = length))
+lang <- tweets[, 13]
+tweets <- transform(tweets, tweetLang = ave(tweets[, lang], user_id, FUN = length))
 
 #Compute most used device for sending tweets
 availableSource <- as.data.frame(levels(factor(df$source)))
-for(i in 1:nrow(df)){
+for(i in 1:nrow(tweets)){
   for(j in 1:nrow(availableSource)){
     source <- as.character(availableSource[j, ])
-    df[i, source] <- 0
+    tweets[i, source] <- 0
   }
 }
 
-for(i in 1:nrow(df)){
-  source <- df[i, 7]
-  df[i, source] <- (df[i, source] + 1)
+for(i in 1:nrow(tweets)){
+  source <- tweets[i, 7]
+  tweets[i, source] <- (tweets[i, source] + 1)
 }
 
 # Derived column Normal to check whether record is a valid or invalid, currently i am considering friendshipRatio and tweetRatio > 14 is invalid and all other is valid
@@ -192,6 +209,16 @@ for(i in 1:nrow(tweets)){
     tweets[i,"normal"] <- 1
   }
 }
+
+##########Create Cluster based on number of friends and followers####################
+
+#pl <- ggplot(tweets, aes(tweets$user_id, tweets$followers_count, color=tweets$user_id))
+#print(pl+geom_point(size=4))
+set.seed(101)
+
+clusteredTweets <- kmeans(tweets[, 8:9], 2, nstart = 20)
+clusplot(tweets, clusteredTweets$cluster, color=TRUE, shade=TRUE, labels=0,lines=0 )
+
 
 ##########Univariate Analysis for categorical features ##################
 
