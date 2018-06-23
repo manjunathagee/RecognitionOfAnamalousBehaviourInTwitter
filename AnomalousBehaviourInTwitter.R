@@ -42,7 +42,7 @@ library(cluster)
 ###### DATA UNDERSTANDING, PREPARATION & DATA ANALYSIS ##############
 startTime <- Sys.time()
 
-tweets <- read.csv("tweets1.csv",stringsAsFactors = FALSE)
+tweets <- read.csv("tweets.csv",stringsAsFactors = FALSE)
 finalResult <- tweets[!duplicated(tweets$user_id), ]
 
 # structure of tweets dataframes
@@ -163,8 +163,11 @@ tweets <- transform(tweets, tweetingPeriod = tweetingPeriod)
 finalResult <- tweets[!duplicated(tweets$user_id), ]
 
 #segregate Users who are evey much active from the rest based on followers count
-ggplot(finalResult, aes(finalResult$user_id, finalResult$followers_count, color = user_id),xlab("User ID"), ylab("Followers Count")) + geom_point()
+ggplot(finalResult, aes(finalResult$user_id, finalResult$followers_count),xlab("User ID"), ylab("Followers Count")) + geom_point()
 
+#Look for NA's introduced due to corresion and remove them.
+sum(is.na(finalResult))
+finalResult <- finalResult[complete.cases(finalResult), ]
 
 #Use Clustering here k-means
 for(i in 1:nrow(tweets)){
@@ -209,6 +212,8 @@ for(i in 1:nrow(tweets)){
     tweets[i,"normal"] <- 1
   }
 }
+
+write.csv(tweets, "finalResult.csv")
 
 ##########Create Cluster based on number of friends and followers####################
 
@@ -416,7 +421,7 @@ cutoff
 ## Prediction using Neural Network Model
 ###################################################################
 tweets <- original_tweets
-tweets <- tweets[,c("user_id","retweet_count","retweet_count","followers_count","friends_count","userLongevity","tweetCount","friendShipRatio","favoriteCountRatio","tweetsRatio","normal")]
+tweets <- tweets[,c("user_id","retweet_count","followers_count","friends_count","userLongevity","tweetCount","friendShipRatio","favoriteCountRatio","tweetsRatio","normal")]
 # splitting the data between train and test
 set.seed(100)
 indices = sample.split(tweets$normal, SplitRatio = 0.5)
