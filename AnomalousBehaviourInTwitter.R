@@ -42,8 +42,8 @@ library(cluster)
 ###### DATA UNDERSTANDING, PREPARATION & DATA ANALYSIS ##############
 startTime <- Sys.time()
 
-tweets <- read.csv("tweets.csv",stringsAsFactors = FALSE)
-finalResult <- tweets[!duplicated(tweets$user_id), ]
+tweets <- read.csv("tweets1.csv",stringsAsFactors = FALSE)
+finalResult1 <- tweets[!duplicated(tweets$user_id), ]
 
 # structure of tweets dataframes
 str(tweets)        # 140640 obs. of  14 variables
@@ -115,25 +115,25 @@ tweets$friends_count <- as.numeric(tweets$friends_count)
 # Derived columns
 processeduserLongevity <- mutate(tweets, userLongevity = round(dateDifference(ymd_hms(user_created_at))))
 tweets <- processeduserLongevity
-finalResult <- processeduserLongevity[!duplicated(processeduserLongevity$user_id), ]
+finalResult1 <- processeduserLongevity[!duplicated(processeduserLongevity$user_id), ]
 
 processedtweetCount <- transform(tweets, tweetCount = ave(user_id, user_id, FUN = length))
 tweets <- processedtweetCount
-finalResult <- processedtweetCount[!duplicated(processedtweetCount$user_id), ]
+finalResult1 <- processedtweetCount[!duplicated(processedtweetCount$user_id), ]
 
 tweets$tweetCount <- as.numeric(tweets$tweetCount)
 processedfriendShipRatio <- mutate(tweets, friendShipRatio = (tweets$friends_count/ tweets$userLongevity)*10)
 tweets <- processedfriendShipRatio
-finalResult <- processedfriendShipRatio[!duplicated(processedfriendShipRatio$user_id), ]
+finalResult1 <- processedfriendShipRatio[!duplicated(processedfriendShipRatio$user_id), ]
 
 
 processedfavoriteCountRatio <- mutate(tweets, favoriteCountRatio = tweets$favorite_count / tweets$userLongevity)
 tweets <- processedfavoriteCountRatio
-finalResult <- processedfavoriteCountRatio[!duplicated(processedfavoriteCountRatio$user_id), ]
+finalResult1 <- processedfavoriteCountRatio[!duplicated(processedfavoriteCountRatio$user_id), ]
 
 processedtweetsRatio <- mutate(tweets, tweetsRatio = tweets$tweetCount / tweets$userLongevity)
 tweets <- processedtweetsRatio
-finalResult <- processedtweetsRatio[!duplicated(processedtweetsRatio$user_id), ]
+finalResult1 <- processedtweetsRatio[!duplicated(processedtweetsRatio$user_id), ]
 
 #Compute Twitting Period - Which duration of the day does the user sends tweet
 Q1 <- 0
@@ -160,14 +160,14 @@ tweetingPeriod <- sapply(tweets$created_at, function(tweetTime){
 })
 
 tweets <- transform(tweets, tweetingPeriod = tweetingPeriod)
-finalResult <- tweets[!duplicated(tweets$user_id), ]
+finalResult1 <- tweets[!duplicated(tweets$user_id), ]
 
 #segregate Users who are evey much active from the rest based on followers count
-ggplot(finalResult, aes(finalResult$user_id, finalResult$followers_count),xlab("User ID"), ylab("Followers Count")) + geom_point()
+#ggplot(finalResult1, aes(finalResult1$user_id, finalResult1$followers_count),xlab("User ID"), ylab("Followers Count")) + geom_point()
 
 #Look for NA's introduced due to corresion and remove them.
-sum(is.na(finalResult))
-finalResult <- finalResult[complete.cases(finalResult), ]
+sum(is.na(finalResult1))
+finalResult1 <- finalResult1[complete.cases(finalResult1), ]
 
 #Use Clustering here k-means
 for(i in 1:nrow(tweets)){
@@ -206,14 +206,17 @@ for(i in 1:nrow(tweets)){
 
 # Derived column Normal to check whether record is a valid or invalid, currently i am considering friendshipRatio and tweetRatio > 14 is invalid and all other is valid
 for(i in 1:nrow(tweets)){
-  if((tweets[i,16]>1)&(tweets[i,18]>1)){
-    tweets[i,"normal"] <-   0  
+  if((tweets[i,16]>1) || (tweets[i,18]>1)){
+    tweets[i,"normal"] <-   0
+    finalResult1[i, "normal"] <- 0
   }else{
     tweets[i,"normal"] <- 1
+    finalResult1[i, "normal"] <- 1
   }
 }
 
-write.csv(tweets, "finalResult.csv")
+finalResult1 <- finalResult1[complete.cases(finalResult1), ]
+write.csv(tweets, "finalResult1.csv")
 
 ##########Create Cluster based on number of friends and followers####################
 
@@ -421,7 +424,7 @@ cutoff
 ## Prediction using Neural Network Model
 ###################################################################
 tweets <- original_tweets
-tweets <- tweets[,c("user_id","retweet_count","followers_count","friends_count","userLongevity","tweetCount","friendShipRatio","favoriteCountRatio","tweetsRatio","normal")]
+tweets <- finalResult1[,c("user_id","retweet_count","followers_count","friends_count","userLongevity","tweetCount","friendShipRatio","favoriteCountRatio","tweetsRatio","tweetingPeriod","normal")]
 # splitting the data between train and test
 set.seed(100)
 indices = sample.split(tweets$normal, SplitRatio = 0.5)
@@ -439,8 +442,6 @@ plot(neuralNet)
 
 predicted.nn.values <- compute(neuralNet,test[1:10])
 predicted.nn.values
-
-
 
 
 endTime <- Sys.time()
